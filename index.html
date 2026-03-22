@@ -9,31 +9,32 @@
 <!-- iOS PWA support -->
 
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="TxnSort">
-<meta name="theme-color" content="#0a0c10">
+<meta name="theme-color" content="#F5F0E8">
 
 <!-- App icon (inline SVG as data URI) -->
 
-<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxODAiIGhlaWdodD0iMTgwIj48cmVjdCB3aWR0aD0iMTgwIiBoZWlnaHQ9IjE4MCIgcng9IjQwIiBmaWxsPSIjMGEwYzEwIi8+PHRleHQgeD0iOTAiIHk9IjEwNSIgZm9udC1mYW1pbHk9InN5c3RlbS11aSIgZm9udC1zaXplPSI3MCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzA2RDZBMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+VHg8L3RleHQ+PC9zdmc+">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxODAiIGhlaWdodD0iMTgwIj48cmVjdCB3aWR0aD0iMTgwIiBoZWlnaHQ9IjE4MCIgcng9IjQwIiBmaWxsPSIjRDRBMjdGIi8+PHRleHQgeD0iOTAiIHk9IjEwNSIgZm9udC1mYW1pbHk9InN5c3RlbS11aSIgZm9udC1zaXplPSI3MCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iI0ZGRkZGRiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+VHg8L3RleHQ+PC9zdmc+">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
   :root {
-    --bg: #0a0c10;
-    --card: #1a1d23;
-    --border: #2a2f38;
-    --text: #e4e8ee;
-    --muted: #6b7280;
-    --dim: #4a5060;
-    --accent: #06D6A0;
-    --accent2: #2A9D8F;
-    --red: #E63946;
-    --orange: #F4A261;
-    --teal: #264653;
-    --purple: #6A4C93;
-    --grey: #8D99AE;
+    --bg: #F5F0E8;
+    --card: #FFFFFF;
+    --border: #E5DDD3;
+    --text: #2D2B28;
+    --muted: #8B8580;
+    --dim: #AEA89F;
+    --accent: #D4A27F;
+    --accent2: #C4916C;
+    --red: #C0392B;
+    --green: #2E7D55;
+    --orange: #D4843E;
+    --teal: #5C7A6E;
+    --purple: #7B6294;
+    --grey: #8B8580;
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
@@ -64,6 +65,7 @@
     padding: 20px 18px;
     margin: 0 auto 14px;
     max-width: 520px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   }
 
   /* Labels */
@@ -86,7 +88,7 @@
     margin: 0 auto;
     transition: border-color 0.2s;
   }
-  .upload-zone.active { border-color: var(--accent); background: rgba(6,214,160,0.04); }
+  .upload-zone.active { border-color: var(--accent); background: rgba(212,162,127,0.06); }
   .upload-zone .arrow { font-size: 36px; opacity: 0.4; margin-bottom: 8px; }
   .upload-zone strong { font-size: 15px; display: block; margin-bottom: 4px; }
   .upload-zone .sub { font-size: 12px; color: var(--muted); }
@@ -94,7 +96,7 @@
 
   /* Progress */
   .progress-wrap { max-width: 520px; margin: 0 auto 18px; }
-  .progress-bar { height: 3px; background: var(--card); border-radius: 2px; overflow: hidden; }
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
   .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.3s; }
   .progress-text { font-size: 11px; color: var(--muted); text-align: right; margin-top: 4px; }
 
@@ -103,14 +105,14 @@
   .txn-desc { font-size: 15px; margin-bottom: 6px; word-break: break-word; }
   .txn-amount { font-size: 26px; font-weight: 700; margin-bottom: 4px; }
   .txn-amount.neg { color: var(--red); }
-  .txn-amount.pos { color: var(--accent); }
+  .txn-amount.pos { color: #2E7D55; }
 
   /* Buttons: buckets */
   .bucket-grid, .cat-grid { display: flex; flex-wrap: wrap; gap: 8px; }
   .bucket-btn, .cat-btn {
     background: transparent;
     border: 1.5px solid var(--border);
-    color: #b0b8c4;
+    color: #5C5650;
     border-radius: 10px;
     padding: 11px 15px;
     font-size: 14px;
@@ -122,21 +124,21 @@
   }
   .bucket-btn:active, .cat-btn:active { transform: scale(0.96); }
   .bucket-btn.selected {
-    background: rgba(6,214,160,0.1);
+    background: rgba(212,162,127,0.12);
     border-color: var(--accent);
-    color: var(--accent);
+    color: var(--accent2);
   }
-  .cat-btn[data-color="red"]    { border-color: #E6394655; color: #E63946; }
-  .cat-btn[data-color="orange"] { border-color: #F4A26155; color: #F4A261; }
-  .cat-btn[data-color="green"]  { border-color: #06D6A055; color: #06D6A0; }
-  .cat-btn[data-color="teal"]   { border-color: #26465355; color: #7EAAA0; }
-  .cat-btn[data-color="mint"]   { border-color: #2A9D8F55; color: #2A9D8F; }
-  .cat-btn[data-color="grey"]   { border-color: #8D99AE55; color: #8D99AE; }
+  .cat-btn[data-color="red"]    { border-color: #C0392B44; color: #C0392B; }
+  .cat-btn[data-color="orange"] { border-color: #D4843E44; color: #D4843E; }
+  .cat-btn[data-color="green"]  { border-color: #2E7D5544; color: #2E7D55; }
+  .cat-btn[data-color="teal"]   { border-color: #5C7A6E44; color: #5C7A6E; }
+  .cat-btn[data-color="mint"]   { border-color: #3D8B7E44; color: #3D8B7E; }
+  .cat-btn[data-color="grey"]   { border-color: #8B858044; color: #8B8580; }
 
   /* Action buttons */
   .btn-primary {
     background: var(--accent);
-    color: var(--bg);
+    color: #FFFFFF;
     border: none;
     border-radius: 10px;
     padding: 12px 24px;
@@ -149,7 +151,7 @@
   .btn-secondary {
     background: transparent;
     border: 1.5px solid var(--border);
-    color: #b0b8c4;
+    color: #5C5650;
     border-radius: 10px;
     padding: 11px 20px;
     font-size: 14px;
@@ -180,7 +182,7 @@
   .new-bucket-row { display: flex; gap: 8px; margin-top: 10px; }
   .new-bucket-row input {
     flex: 1;
-    background: #14161a;
+    background: #F0EBE3;
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 10px 12px;
@@ -192,7 +194,7 @@
   .new-bucket-row button {
     background: var(--border);
     border: none;
-    color: #b0b8c4;
+    color: #5C5650;
     border-radius: 8px;
     padding: 10px 16px;
     font-size: 14px;
@@ -224,10 +226,10 @@
   .stat-val { font-size: 17px; font-weight: 700; }
 
   .bucket-summary { max-width: 520px; margin: 0 auto; }
-  .cat-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #14161a; }
+  .cat-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #F0EBE3; }
   .cat-row-left { display: flex; align-items: center; gap: 8px; }
   .cat-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
-  .cat-row-name { font-size: 13px; color: #b0b8c4; }
+  .cat-row-name { font-size: 13px; color: #5C5650; }
   .cat-row-count { font-size: 11px; color: var(--dim); }
   .bucket-net { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 8px; }
 
@@ -242,7 +244,7 @@
     max-width: 700px; margin-left: auto; margin-right: auto;
   }
   .review-item select {
-    background: #14161a; color: #b0b8c4; border: 1px solid var(--border);
+    background: #F0EBE3; color: #5C5650; border: 1px solid var(--border);
     border-radius: 6px; padding: 6px 8px; font-size: 13px; font-family: inherit;
   }
 
@@ -269,12 +271,12 @@
 // ---- Data ----
 const DEFAULT_BUCKETS = ["Vauxhall Car", "Pet", "Household"];
 const CATEGORIES = [
-  { name: "Recurring Expenditure", color: "red", hex: "#E63946" },
-  { name: "One-off Payment", color: "orange", hex: "#F4A261" },
-  { name: "Income", color: "green", hex: "#06D6A0" },
-  { name: "Capital", color: "teal", hex: "#264653" },
-  { name: "Refund", color: "mint", hex: "#2A9D8F" },
-  { name: "Miscellaneous", color: "grey", hex: "#8D99AE" },
+  { name: "Recurring Expenditure", color: "red", hex: "#C0392B" },
+  { name: "One-off Payment", color: "orange", hex: "#D4843E" },
+  { name: "Income", color: "green", hex: "#2E7D55" },
+  { name: "Capital", color: "teal", hex: "#5C7A6E" },
+  { name: "Refund", color: "mint", hex: "#3D8B7E" },
+  { name: "Miscellaneous", color: "grey", hex: "#8B8580" },
 ];
 
 let state = {
@@ -434,7 +436,7 @@ function renderSummary() {
       const ci = d.items.filter(t => t.category === cat.name);
       if (!ci.length) return "";
       const ct = ci.reduce((s,t) => s + Math.abs(t.amount), 0);
-      const col = (cat.name === "Income" || cat.name === "Refund") ? "var(--accent)" : "var(--red)";
+      const col = (cat.name === "Income" || cat.name === "Refund") ? "var(--green)" : "var(--red)";
       return `<div class="cat-row">
         <div class="cat-row-left"><div class="cat-dot" style="background:${cat.hex}"></div>
         <span class="cat-row-name">${esc(cat.name)}</span><span class="cat-row-count">(${ci.length})</span></div>
@@ -442,7 +444,7 @@ function renderSummary() {
       </div>`;
     }).join("");
     const bnet = d.inc - d.out;
-    const bnetCol = bnet >= 0 ? "var(--accent)" : "var(--red)";
+    const bnetCol = bnet >= 0 ? "var(--green)" : "var(--red)";
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div style="font-size:15px;font-weight:600">${esc(name)}</div>
@@ -461,8 +463,8 @@ function renderSummary() {
     </div>
     <div class="stat-grid">
       <div class="stat-box"><div class="stat-label">Total Out</div><div class="stat-val mono" style="color:var(--red)">${formatMoney(grandOut)}</div></div>
-      <div class="stat-box"><div class="stat-label">Total In</div><div class="stat-val mono" style="color:var(--accent)">${formatMoney(grandIn)}</div></div>
-      <div class="stat-box"><div class="stat-label">Net</div><div class="stat-val mono" style="color:${net>=0?'var(--accent)':'var(--red)'}">${formatMoney(net)}</div></div>
+      <div class="stat-box"><div class="stat-label">Total In</div><div class="stat-val mono" style="color:var(--green)">${formatMoney(grandIn)}</div></div>
+      <div class="stat-box"><div class="stat-label">Net</div><div class="stat-val mono" style="color:${net>=0?'var(--green)':'var(--red)'}">${formatMoney(net)}</div></div>
     </div>
     <div class="bucket-summary">${bucketCards}</div>
     <div class="actions">
@@ -482,7 +484,7 @@ function renderReview() {
       let catOpts = CATEGORIES.map(c => `<option value="${esc(c.name)}"${t.category===c.name?' selected':''}>${esc(c.name)}</option>`).join("");
       catSelect = `<select data-id="${t.id}" data-field="category">${catOpts}</select>`;
     }
-    const col = t.amount < 0 ? "var(--red)" : "var(--accent)";
+    const col = t.amount < 0 ? "var(--red)" : "var(--green)";
     return `<div class="review-item">
       <span class="mono" style="font-size:11px;color:var(--muted);min-width:68px">${esc(t.date)}</span>
       <span style="font-size:13px;flex:1;min-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.description)}</span>

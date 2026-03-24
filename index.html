@@ -1,677 +1,737 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Transaction Classifier</title>
-
-<!-- iOS PWA support -->
-
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="TxnSort">
 <meta name="theme-color" content="#F5F0E8">
-
-<!-- App icon (inline SVG as data URI) -->
-
 <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxODAiIGhlaWdodD0iMTgwIj48cmVjdCB3aWR0aD0iMTgwIiBoZWlnaHQ9IjE4MCIgcng9IjQwIiBmaWxsPSIjRDRBMjdGIi8+PHRleHQgeD0iOTAiIHk9IjEwNSIgZm9udC1mYW1pbHk9InN5c3RlbS11aSIgZm9udC1zaXplPSI3MCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iI0ZGRkZGRiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+VHg8L3RleHQ+PC9zdmc+">
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
 <style>
-  :root {
-    --bg: #F5F0E8;
-    --card: #FFFFFF;
-    --border: #E5DDD3;
-    --text: #2D2B28;
-    --muted: #8B8580;
-    --dim: #AEA89F;
-    --accent: #D4A27F;
-    --accent2: #C4916C;
-    --red: #C0392B;
-    --green: #2E7D55;
-    --orange: #D4843E;
-    --teal: #5C7A6E;
-    --purple: #7B6294;
-    --grey: #8B8580;
-    --safe-top: env(safe-area-inset-top, 0px);
-    --safe-bottom: env(safe-area-inset-bottom, 0px);
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    min-height: -webkit-fill-available;
-    padding: calc(20px + var(--safe-top)) 16px calc(24px + var(--safe-bottom));
-    line-height: 1.5;
-    overflow-x: hidden;
-    -webkit-font-smoothing: antialiased;
-  }
-  .mono { font-family: 'SF Mono', 'Menlo', 'Courier New', monospace; }
+:root {
+  --bg:#F5F0E8; --card:#FFFFFF; --border:#E5DDD3; --text:#2D2B28;
+  --muted:#8B8580; --dim:#AEA89F; --accent:#D4A27F; --accent2:#C4916C;
+  --red:#C0392B; --green:#2E7D55; --orange:#D4843E; --teal:#5C7A6E;
+  --input-bg:#F0EBE3;
+  --safe-top:env(safe-area-inset-top,0px); --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;min-height:-webkit-fill-available;padding:calc(20px + var(--safe-top)) 16px calc(24px + var(--safe-bottom));line-height:1.5;overflow-x:hidden;-webkit-font-smoothing:antialiased;}
+.mono{font-family:'SF Mono','Menlo','Courier New',monospace;}
 
-  /* Header */
-  .header { text-align: center; margin-bottom: 24px; }
-  .header .tag { font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--dim); margin-bottom: 4px; }
-  .header h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.3px; }
+/* Layout */
+.page{max-width:520px;margin:0 auto;}
+.header{text-align:center;margin-bottom:24px;}
+.header .tag{font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--dim);margin-bottom:4px;}
+.header h1{font-size:20px;font-weight:600;letter-spacing:-0.3px;}
+.back-row{max-width:520px;margin:0 auto 16px;display:flex;align-items:center;gap:8px;}
+.back-btn{background:none;border:none;color:var(--accent2);font-size:14px;cursor:pointer;font-family:inherit;padding:4px 0;display:flex;align-items:center;gap:4px;}
+.back-btn::before{content:'\2190';font-size:16px;}
 
-  /* Cards */
-  .card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 20px 18px;
-    margin: 0 auto 14px;
-    max-width: 520px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-  }
+/* Cards */
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 18px;margin:0 auto 14px;max-width:520px;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
+.label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;}
 
-  /* Labels */
-  .label {
-    font-size: 10px;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 10px;
-  }
+/* Bucket cards on home */
+.bucket-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,0.04);cursor:pointer;transition:border-color 0.15s;display:flex;justify-content:space-between;align-items:center;}
+.bucket-card:active{border-color:var(--accent);}
+.bucket-card-name{font-size:15px;font-weight:600;}
+.bucket-card-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.bucket-card-total{font-size:17px;font-weight:700;text-align:right;}
+.bucket-card-count{font-size:11px;color:var(--muted);text-align:right;margin-top:2px;}
+.bucket-card-arrow{color:var(--dim);font-size:18px;margin-left:12px;}
 
-  /* Upload zone */
-  .upload-zone {
-    border: 2px dashed var(--border);
-    border-radius: 12px;
-    padding: 52px 24px;
-    text-align: center;
-    cursor: pointer;
-    max-width: 520px;
-    margin: 0 auto;
-    transition: border-color 0.2s;
-  }
-  .upload-zone.active { border-color: var(--accent); background: rgba(212,162,127,0.06); }
-  .upload-zone .arrow { font-size: 36px; opacity: 0.4; margin-bottom: 8px; }
-  .upload-zone strong { font-size: 15px; display: block; margin-bottom: 4px; }
-  .upload-zone .sub { font-size: 12px; color: var(--muted); }
-  .upload-zone .hint { font-size: 11px; color: var(--dim); margin-top: 10px; }
+/* Empty state */
+.empty-state{text-align:center;padding:40px 20px;color:var(--muted);}
+.empty-state .icon{font-size:36px;opacity:0.3;margin-bottom:10px;}
+.empty-state p{font-size:14px;line-height:1.6;}
 
-  /* Progress */
-  .progress-wrap { max-width: 520px; margin: 0 auto 18px; }
-  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
-  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.3s; }
-  .progress-text { font-size: 11px; color: var(--muted); text-align: right; margin-top: 4px; }
+/* Upload */
+.upload-zone{border:2px dashed var(--border);border-radius:12px;padding:44px 24px;text-align:center;cursor:pointer;max-width:520px;margin:0 auto;transition:border-color 0.2s;}
+.upload-zone.active{border-color:var(--accent);background:rgba(212,162,127,0.06);}
+.upload-zone .arrow{font-size:32px;opacity:0.4;margin-bottom:8px;}
+.upload-zone strong{font-size:15px;display:block;margin-bottom:4px;}
+.upload-zone .sub{font-size:12px;color:var(--muted);}
+.upload-zone .hint{font-size:11px;color:var(--dim);margin-top:10px;}
 
-  /* Transaction display */
-  .txn-date { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
-  .txn-desc { font-size: 15px; margin-bottom: 6px; word-break: break-word; }
-  .txn-amount { font-size: 26px; font-weight: 700; margin-bottom: 4px; }
-  .txn-amount.neg { color: var(--red); }
-  .txn-amount.pos { color: #2E7D55; }
+/* Progress */
+.progress-wrap{max-width:520px;margin:0 auto 18px;}
+.progress-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width 0.3s;}
+.progress-text{font-size:11px;color:var(--muted);text-align:right;margin-top:4px;}
 
-  /* Buttons: buckets */
-  .bucket-grid, .cat-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-  .bucket-btn, .cat-btn {
-    background: transparent;
-    border: 1.5px solid var(--border);
-    color: #5C5650;
-    border-radius: 10px;
-    padding: 11px 15px;
-    font-size: 14px;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.15s;
-    -webkit-user-select: none;
-    user-select: none;
-  }
-  .bucket-btn:active, .cat-btn:active { transform: scale(0.96); }
-  .bucket-btn.selected {
-    background: rgba(212,162,127,0.12);
-    border-color: var(--accent);
-    color: var(--accent2);
-  }
-  .cat-btn[data-color="red"]    { border-color: #C0392B44; color: #C0392B; }
-  .cat-btn[data-color="orange"] { border-color: #D4843E44; color: #D4843E; }
-  .cat-btn[data-color="green"]  { border-color: #2E7D5544; color: #2E7D55; }
-  .cat-btn[data-color="teal"]   { border-color: #5C7A6E44; color: #5C7A6E; }
-  .cat-btn[data-color="mint"]   { border-color: #3D8B7E44; color: #3D8B7E; }
-  .cat-btn[data-color="grey"]   { border-color: #8B858044; color: #8B8580; }
+/* Transaction display */
+.txn-date{font-size:11px;color:var(--muted);margin-bottom:12px;}
+.txn-desc{font-size:15px;margin-bottom:6px;word-break:break-word;}
+.txn-amount{font-size:26px;font-weight:700;margin-bottom:4px;}
+.txn-amount.neg{color:var(--red);}
+.txn-amount.pos{color:var(--green);}
 
-  /* Action buttons */
-  .btn-primary {
-    background: var(--accent);
-    color: #FFFFFF;
-    border: none;
-    border-radius: 10px;
-    padding: 12px 24px;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-  }
-  .btn-primary:active { opacity: 0.85; }
-  .btn-secondary {
-    background: transparent;
-    border: 1.5px solid var(--border);
-    color: #5C5650;
-    border-radius: 10px;
-    padding: 11px 20px;
-    font-size: 14px;
-    cursor: pointer;
-    font-family: inherit;
-  }
-  .btn-ghost {
-    background: none;
-    border: none;
-    color: var(--dim);
-    font-size: 13px;
-    cursor: pointer;
-    font-family: inherit;
-    text-decoration: underline;
-    padding: 4px;
-  }
-  .btn-add-bucket {
-    background: none;
-    border: none;
-    color: var(--accent);
-    font-size: 13px;
-    cursor: pointer;
-    font-family: inherit;
-    padding: 4px 0;
-  }
+/* Buttons */
+.bucket-grid,.cat-grid{display:flex;flex-wrap:wrap;gap:8px;}
+.bucket-btn,.cat-btn{background:transparent;border:1.5px solid var(--border);color:#5C5650;border-radius:10px;padding:11px 15px;font-size:14px;cursor:pointer;font-family:inherit;transition:all 0.15s;-webkit-user-select:none;user-select:none;}
+.bucket-btn:active,.cat-btn:active{transform:scale(0.96);}
+.bucket-btn.selected{background:rgba(212,162,127,0.12);border-color:var(--accent);color:var(--accent2);}
+.cat-btn[data-color="red"]{border-color:#C0392B44;color:#C0392B;}
+.cat-btn[data-color="orange"]{border-color:#D4843E44;color:#D4843E;}
+.cat-btn[data-color="green"]{border-color:#2E7D5544;color:#2E7D55;}
+.cat-btn[data-color="teal"]{border-color:#5C7A6E44;color:#5C7A6E;}
+.cat-btn[data-color="mint"]{border-color:#3D8B7E44;color:#3D8B7E;}
+.cat-btn[data-color="grey"]{border-color:#8B858044;color:#8B8580;}
+.btn-primary{background:var(--accent);color:#FFF;border:none;border-radius:10px;padding:12px 24px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;width:100%;}
+.btn-primary:active{opacity:0.85;}
+.btn-primary:disabled{opacity:0.4;cursor:default;}
+.btn-primary.inline{width:auto;}
+.btn-secondary{background:transparent;border:1.5px solid var(--border);color:#5C5650;border-radius:10px;padding:11px 20px;font-size:14px;cursor:pointer;font-family:inherit;}
+.btn-ghost{background:none;border:none;color:var(--dim);font-size:13px;cursor:pointer;font-family:inherit;text-decoration:underline;padding:4px;}
+.btn-add-bucket{background:none;border:none;color:var(--accent);font-size:13px;cursor:pointer;font-family:inherit;padding:4px 0;}
+.btn-danger{background:none;border:none;color:var(--red);font-size:12px;cursor:pointer;font-family:inherit;padding:4px;opacity:0.7;}
 
-  /* New bucket input row */
-  .new-bucket-row { display: flex; gap: 8px; margin-top: 10px; }
-  .new-bucket-row input {
-    flex: 1;
-    background: #F0EBE3;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 12px;
-    color: var(--text);
-    font-size: 14px;
-    font-family: inherit;
-    min-width: 0;
-  }
-  .new-bucket-row button {
-    background: var(--border);
-    border: none;
-    color: #5C5650;
-    border-radius: 8px;
-    padding: 10px 16px;
-    font-size: 14px;
-    cursor: pointer;
-    font-family: inherit;
-    white-space: nowrap;
-  }
-  .new-bucket-close {
-    background: none !important;
-    color: var(--dim) !important;
-    font-size: 20px !important;
-    padding: 4px 8px !important;
-  }
+/* Input */
+.input-field{background:var(--input-bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:inherit;min-width:0;width:100%;}
+.input-row{display:flex;gap:8px;margin-bottom:10px;}
+.input-row button{background:var(--border);border:none;color:#5C5650;border-radius:8px;padding:10px 16px;font-size:14px;cursor:pointer;font-family:inherit;white-space:nowrap;}
 
-  /* Footer row */
-  .footer-row {
-    max-width: 520px;
-    margin: 0 auto;
-    margin-top: 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
+/* Footer */
+.footer-row{max-width:520px;margin:12px auto 0;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;}
 
-  /* Summary */
-  .stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; max-width: 520px; margin: 0 auto 20px; }
-  .stat-box { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 10px; text-align: center; }
-  .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-  .stat-val { font-size: 17px; font-weight: 700; }
+/* Split */
+.split-part{background:var(--input-bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;}
+.split-part-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.split-part-num{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;}
+.split-remove{background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:2px 6px;opacity:0.6;}
+.split-row{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+.split-input{flex:1;min-width:0;}
+.split-amount-input{width:100px;flex:none;}
+.split-select{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 8px;color:var(--text);font-size:13px;font-family:inherit;flex:1;min-width:0;}
+.split-remaining{display:flex;justify-content:space-between;align-items:center;padding:10px 0;margin-bottom:10px;}
+.split-remaining-label{font-size:12px;color:var(--muted);}
+.split-remaining-val{font-weight:700;font-size:15px;}
+.split-remaining-val.ok{color:var(--green);}
+.split-remaining-val.over{color:var(--red);}
+.split-remaining-val.partial{color:var(--orange);}
+.split-actions{display:flex;gap:8px;flex-wrap:wrap;}
 
-  .bucket-summary { max-width: 520px; margin: 0 auto; }
-  .cat-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #F0EBE3; }
-  .cat-row-left { display: flex; align-items: center; gap: 8px; }
-  .cat-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
-  .cat-row-name { font-size: 13px; color: #5C5650; }
-  .cat-row-count { font-size: 11px; color: var(--dim); }
-  .bucket-net { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 8px; }
+/* Detail list */
+.txn-list-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);}
+.txn-list-item:last-child{border-bottom:none;}
+.txn-list-left{flex:1;min-width:0;margin-right:12px;}
+.txn-list-desc{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.txn-list-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.txn-list-amount{font-weight:600;font-size:14px;white-space:nowrap;}
 
-  .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; max-width: 520px; margin: 8px auto 0; }
+/* Category section */
+.cat-section{margin-bottom:20px;}
+.cat-section-header{display:flex;justify-content:space-between;align-items:center;padding:8px 0;margin-bottom:4px;}
+.cat-section-name{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.cat-section-dot{width:8px;height:8px;border-radius:2px;}
+.cat-section-total{font-size:14px;font-weight:700;}
 
-  /* Review */
-  .review-header { display: flex; justify-content: space-between; align-items: center; max-width: 700px; margin: 0 auto 14px; }
-  .review-item {
-    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
-    padding: 10px 12px; background: var(--card); border-radius: 8px;
-    margin-bottom: 6px; border: 1px solid var(--border);
-    max-width: 700px; margin-left: auto; margin-right: auto;
-  }
-  .review-item select {
-    background: #F0EBE3; color: #5C5650; border: 1px solid var(--border);
-    border-radius: 6px; padding: 6px 8px; font-size: 13px; font-family: inherit;
-  }
+/* Stat grid */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px;}
+.stat-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 10px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
+.stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;}
+.stat-val{font-size:17px;font-weight:700;}
 
-  /* Utility */
-  .center { text-align: center; }
-  .mb-6 { margin-bottom: 6px; }
-  .mb-12 { margin-bottom: 12px; }
-  .mb-20 { margin-bottom: 20px; }
-  .mb-28 { margin-bottom: 28px; }
-  .hidden { display: none; }
+.actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px;}
+.center{text-align:center;}
+.mb-12{margin-bottom:12px;}
+.mb-16{margin-bottom:16px;}
+.mb-24{margin-bottom:24px;}
 </style>
-
 </head>
 <body>
-
-<div class="header">
-  <div class="tag">Transaction</div>
-  <h1>Classifier</h1>
-</div>
-
 <div id="app"></div>
-
 <script>
-// ---- Data ----
-const DEFAULT_BUCKETS = ["Vauxhall Car", "Pet", "Household"];
+// ============ DATA ============
 const CATEGORIES = [
-  { name: "Recurring Expenditure", color: "red", hex: "#C0392B" },
-  { name: "One-off Payment", color: "orange", hex: "#D4843E" },
-  { name: "Income", color: "green", hex: "#2E7D55" },
-  { name: "Capital", color: "teal", hex: "#5C7A6E" },
-  { name: "Refund", color: "mint", hex: "#3D8B7E" },
-  { name: "Miscellaneous", color: "grey", hex: "#8B8580" },
+  {name:"Recurring Expenditure",color:"red",hex:"#C0392B"},
+  {name:"One-off Payment",color:"orange",hex:"#D4843E"},
+  {name:"Income",color:"green",hex:"#2E7D55"},
+  {name:"Capital",color:"teal",hex:"#5C7A6E"},
+  {name:"Refund",color:"mint",hex:"#3D8B7E"},
+  {name:"Miscellaneous",color:"grey",hex:"#8B8580"},
 ];
 
-let state = {
-  transactions: [],
-  buckets: [...DEFAULT_BUCKETS],
-  phase: "upload",
-  undoStack: [],
+let nextId = 1;
+
+// Persistent data: { buckets: { "Name": { transactions: [...] } } }
+let data = { buckets: {} };
+
+// Session state
+let ui = {
+  phase: "home",      // home | bucket | upload | classify | results
+  viewBucket: null,    // which bucket detail is open
+  pending: [],         // CSV transactions awaiting classification
+  sessionClassified: [],// transactions classified this session (for results)
   selectedBucket: null,
   showNewBucket: false,
   newBucketName: "",
+  splitMode: false,
+  splitParts: [],
+  undoStack: [],
 };
 
-function getPending() { return state.transactions.filter(t => !t.bucket && !t._skipped); }
-function formatMoney(v) {
-  const s = v < 0 ? "-" : "";
-  return s + "\u00A3" + Math.abs(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+// ============ STORAGE ============
+function save() {
+  try { localStorage.setItem("txnSort_data", JSON.stringify(data)); } catch(e) {}
+}
+function load() {
+  try {
+    const raw = localStorage.getItem("txnSort_data");
+    if (raw) { data = JSON.parse(raw); nextId = Date.now(); }
+  } catch(e) {}
 }
 
-// ---- CSV Parser ----
+// ============ HELPERS ============
+function fmt(v) { return (v<0?"-":"")+"\u00A3"+Math.abs(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,","); }
+function esc(s) { const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+function bucketNames() { return Object.keys(data.buckets); }
+function bucketTotal(name) {
+  const txns = data.buckets[name]?.transactions || [];
+  return txns.reduce((s,t) => s + Math.abs(t.amount), 0);
+}
+function bucketNet(name) {
+  const txns = data.buckets[name]?.transactions || [];
+  let inc=0, out=0;
+  txns.forEach(t => {
+    const abs = Math.abs(t.amount);
+    if (t.category==="Income"||t.category==="Refund") inc+=abs; else out+=abs;
+  });
+  return inc - out;
+}
+function allTransactions() {
+  let all = [];
+  Object.entries(data.buckets).forEach(([b,d]) => { d.transactions.forEach(t => all.push({...t, bucket:b})); });
+  return all;
+}
+function getPending() { return ui.pending.filter(t => !t._done); }
+function genId() { return nextId++; }
+
+// ============ CSV ============
 function parseCSV(text) {
-  const lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
-  const delim = lines[0].includes("\t") ? "\t" : ",";
-  const headers = parseLine(lines[0], delim).map(h => h.trim().toLowerCase().replace(/['"]/g, ""));
-  const dateIdx = headers.findIndex(h => /date|trans.*date|posted|booking/i.test(h));
-  const descIdx = headers.findIndex(h => /desc|narrative|memo|detail|reference|particulars|name/i.test(h));
-  const amtIdx = headers.findIndex(h => /amount|value|sum/i.test(h));
-  const debIdx = headers.findIndex(h => /debit|out|paid out/i.test(h));
-  const credIdx = headers.findIndex(h => /credit|in|paid in|received/i.test(h));
-  const txns = [];
-  for (let i = 1; i < lines.length; i++) {
-    if (!lines[i].trim()) continue;
-    const cols = parseLine(lines[i], delim).map(c => c.trim().replace(/^['"]|['"]$/g, ""));
-    let amount = 0;
-    if (amtIdx >= 0) amount = parseFloat(cols[amtIdx]?.replace(/[\u00A3$,\s]/g, "")) || 0;
-    else {
-      const deb = debIdx >= 0 ? parseFloat(cols[debIdx]?.replace(/[\u00A3$,\s]/g, "")) || 0 : 0;
-      const cred = credIdx >= 0 ? parseFloat(cols[credIdx]?.replace(/[\u00A3$,\s]/g, "")) || 0 : 0;
-      amount = cred > 0 ? cred : -deb;
-    }
-    txns.push({ id: i, date: cols[dateIdx >= 0 ? dateIdx : 0] || "", description: cols[descIdx >= 0 ? descIdx : Math.min(1, cols.length-1)] || "", amount, bucket: null, category: null, _skipped: false });
+  const lines=text.trim().split(/\r?\n/); if(lines.length<2)return [];
+  const delim=lines[0].includes("\t")?"\t":",";
+  const hdr=parseLine(lines[0],delim).map(h=>h.trim().toLowerCase().replace(/['"]/g,""));
+  const dI=hdr.findIndex(h=>/date|trans.*date|posted|booking/i.test(h));
+  const descI=hdr.findIndex(h=>/desc|narrative|memo|detail|reference|particulars|name/i.test(h));
+  const amtI=hdr.findIndex(h=>/amount|value|sum/i.test(h));
+  const debI=hdr.findIndex(h=>/debit|out|paid out/i.test(h));
+  const credI=hdr.findIndex(h=>/credit|in|paid in|received/i.test(h));
+  const txns=[];
+  for(let i=1;i<lines.length;i++){
+    if(!lines[i].trim())continue;
+    const c=parseLine(lines[i],delim).map(x=>x.trim().replace(/^['"]|['"]$/g,""));
+    let amt=0;
+    if(amtI>=0) amt=parseFloat(c[amtI]?.replace(/[\u00A3$,\s]/g,""))||0;
+    else{const db=debI>=0?parseFloat(c[debI]?.replace(/[\u00A3$,\s]/g,""))||0:0;const cr=credI>=0?parseFloat(c[credI]?.replace(/[\u00A3$,\s]/g,""))||0:0;amt=cr>0?cr:-db;}
+    txns.push({id:genId(),date:c[dI>=0?dI:0]||"",description:c[descI>=0?descI:Math.min(1,c.length-1)]||"",amount:amt,_done:false});
   }
   return txns;
 }
-function parseLine(line, delim) {
-  const r = []; let cur = "", inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') inQ = !inQ;
-    else if (c === delim && !inQ) { r.push(cur); cur = ""; }
-    else cur += c;
-  }
-  r.push(cur); return r;
+function parseLine(line,d){const r=[];let cur="",q=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"')q=!q;else if(c===d&&!q){r.push(cur);cur="";}else cur+=c;}r.push(cur);return r;}
+
+// ============ ACTIONS ============
+function createBucket(name) {
+  if(!name.trim()||data.buckets[name.trim()]) return;
+  data.buckets[name.trim()] = { transactions: [] };
+  save();
+}
+function deleteBucket(name) {
+  delete data.buckets[name];
+  save();
+}
+function addToBucket(bucketName, txn) {
+  if(!data.buckets[bucketName]) data.buckets[bucketName]={transactions:[]};
+  data.buckets[bucketName].transactions.push(txn);
+  save();
 }
 
-// ---- Render ----
+// ============ RENDER ============
 function render() {
   const app = document.getElementById("app");
-  if (state.phase === "upload") app.innerHTML = renderUpload();
-  else if (state.phase === "classify") app.innerHTML = renderClassify();
-  else if (state.phase === "done") app.innerHTML = renderSummary();
-  else if (state.phase === "review") app.innerHTML = renderReview();
+  switch(ui.phase) {
+    case "home": app.innerHTML = renderHome(); break;
+    case "bucket": app.innerHTML = renderBucketDetail(); break;
+    case "upload": app.innerHTML = renderUpload(); break;
+    case "classify": app.innerHTML = renderClassify(); break;
+    case "results": app.innerHTML = renderResults(); break;
+  }
   bindEvents();
 }
 
-function renderUpload() {
-  return `
-    <div class="upload-zone" id="dropZone">
-      <input type="file" id="fileInput" accept=".csv,.tsv,.txt" style="display:none">
-      <div class="arrow">&#8593;</div>
-      <strong>Drop your bank CSV here</strong>
-      <div class="sub">or tap to browse</div>
-      <div class="hint">Works with most UK bank exports</div>
-    </div>`;
-}
-
-function renderClassify() {
-  const pending = getPending();
-  const total = state.transactions.length;
-  const done = total - pending.length;
-  if (pending.length === 0) { state.phase = "done"; return renderSummary(); }
-  const t = pending[0];
-  const isNeg = t.amount < 0;
-  const pct = total > 0 ? (done / total * 100) : 0;
-
-  let bucketBtns = state.buckets.map(b =>
-    `<button class="bucket-btn${state.selectedBucket === b ? ' selected' : ''}" data-bucket="${esc(b)}">${esc(b)}</button>`
-  ).join("");
-
-  let newBucketHtml = "";
-  if (state.showNewBucket) {
-    newBucketHtml = `<div class="new-bucket-row">
-      <input id="newBucketInput" placeholder="Bucket name" value="${esc(state.newBucketName)}">
-      <button id="addBucketBtn">Add</button>
-      <button class="new-bucket-close" id="cancelNewBucket">&times;</button>
-    </div>`;
+// ---- HOME ----
+function renderHome() {
+  const names = bucketNames();
+  let bucketCards = "";
+  if (names.length === 0) {
+    bucketCards = `<div class="empty-state"><div class="icon">&#x1F4C2;</div><p>No buckets yet.<br>Create your first bucket to get started.</p></div>`;
   } else {
-    newBucketHtml = `<button class="btn-add-bucket" id="showNewBucket">+ New bucket</button>`;
-  }
-
-  let catHtml = "";
-  if (state.selectedBucket) {
-    const catBtns = CATEGORIES.map(c =>
-      `<button class="cat-btn" data-color="${c.color}" data-cat="${esc(c.name)}">${esc(c.name)}</button>`
-    ).join("");
-    catHtml = `<div class="card">
-      <div class="label">Step 2: Category in &ldquo;${esc(state.selectedBucket)}&rdquo;</div>
-      <div class="cat-grid">${catBtns}</div>
-    </div>`;
-  }
-
-  let undoBtn = state.undoStack.length > 0 ? `<button class="btn-ghost" id="undoBtn">Undo last</button>` : "";
-
-  return `
-    <div class="progress-wrap">
-      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-      <div class="progress-text">${done} of ${total}</div>
-    </div>
-    <div class="card">
-      <div class="txn-date mono">${esc(t.date)}</div>
-      <div class="txn-desc">${esc(t.description)}</div>
-      <div class="txn-amount mono ${isNeg ? 'neg' : 'pos'}">${formatMoney(t.amount)}</div>
-    </div>
-    <div class="card">
-      <div class="label">Step 1: Choose a bucket</div>
-      <div class="bucket-grid mb-12">${bucketBtns}</div>
-      ${newBucketHtml}
-    </div>
-    ${catHtml}
-    <div class="footer-row">
-      <button class="btn-secondary" id="skipBtn">Skip (not relevant)</button>
-      ${undoBtn}
-    </div>`;
-}
-
-function renderSummary() {
-  const classified = state.transactions.filter(t => t.bucket);
-  const skipped = state.transactions.filter(t => t._skipped);
-  const total = state.transactions.length;
-
-  // Bucket data
-  const bd = {};
-  state.buckets.forEach(b => { bd[b] = { items: [], out: 0, inc: 0 }; });
-  classified.forEach(t => {
-    if (!bd[t.bucket]) bd[t.bucket] = { items: [], out: 0, inc: 0 };
-    bd[t.bucket].items.push(t);
-    const abs = Math.abs(t.amount);
-    if (t.category === "Income" || t.category === "Refund") bd[t.bucket].inc += abs;
-    else bd[t.bucket].out += abs;
-  });
-  const grandOut = Object.values(bd).reduce((s, b) => s + b.out, 0);
-  const grandIn = Object.values(bd).reduce((s, b) => s + b.inc, 0);
-  const net = grandIn - grandOut;
-
-  let bucketCards = Object.entries(bd).filter(([,d]) => d.items.length > 0).map(([name, d]) => {
-    let catRows = CATEGORIES.map(cat => {
-      const ci = d.items.filter(t => t.category === cat.name);
-      if (!ci.length) return "";
-      const ct = ci.reduce((s,t) => s + Math.abs(t.amount), 0);
-      const col = (cat.name === "Income" || cat.name === "Refund") ? "var(--green)" : "var(--red)";
-      return `<div class="cat-row">
-        <div class="cat-row-left"><div class="cat-dot" style="background:${cat.hex}"></div>
-        <span class="cat-row-name">${esc(cat.name)}</span><span class="cat-row-count">(${ci.length})</span></div>
-        <span class="mono" style="font-size:13px;font-weight:600;color:${col}">${formatMoney(ct)}</span>
+    bucketCards = names.map(name => {
+      const txns = data.buckets[name].transactions;
+      const total = bucketTotal(name);
+      const net = bucketNet(name);
+      const netCol = net >= 0 ? "var(--green)" : "var(--red)";
+      return `<div class="bucket-card" data-open="${esc(name)}">
+        <div>
+          <div class="bucket-card-name">${esc(name)}</div>
+          <div class="bucket-card-meta">${txns.length} transaction${txns.length!==1?'s':''}</div>
+        </div>
+        <div style="display:flex;align-items:center">
+          <div>
+            <div class="bucket-card-total mono" style="color:${netCol}">${fmt(net)}</div>
+            <div class="bucket-card-count">${fmt(total)} total</div>
+          </div>
+          <div class="bucket-card-arrow">&#x203A;</div>
+        </div>
       </div>`;
     }).join("");
-    const bnet = d.inc - d.out;
-    const bnetCol = bnet >= 0 ? "var(--green)" : "var(--red)";
-    return `<div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div style="font-size:15px;font-weight:600">${esc(name)}</div>
-        <div style="font-size:11px;color:var(--muted)">${d.items.length} txn${d.items.length!==1?'s':''}</div>
-      </div>
-      ${catRows}
-      <div class="bucket-net"><span style="font-size:12px;color:var(--muted)">Bucket net</span>
-        <span class="mono" style="font-size:14px;font-weight:700;color:${bnetCol}">${formatMoney(bnet)}</span></div>
-    </div>`;
-  }).join("");
-
-  return `
-    <div class="center mb-28">
-      <div style="font-size:12px;color:var(--accent);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Complete</div>
-      <div style="font-size:13px;color:var(--muted)">${classified.length} classified, ${skipped.length} skipped, ${total} total</div>
-    </div>
-    <div class="stat-grid">
-      <div class="stat-box"><div class="stat-label">Total Out</div><div class="stat-val mono" style="color:var(--red)">${formatMoney(grandOut)}</div></div>
-      <div class="stat-box"><div class="stat-label">Total In</div><div class="stat-val mono" style="color:var(--green)">${formatMoney(grandIn)}</div></div>
-      <div class="stat-box"><div class="stat-label">Net</div><div class="stat-val mono" style="color:${net>=0?'var(--green)':'var(--red)'}">${formatMoney(net)}</div></div>
-    </div>
-    <div class="bucket-summary">${bucketCards}</div>
-    <div class="actions">
-      <button class="btn-primary" id="exportBtn">Export .xlsx</button>
-      <button class="btn-secondary" id="reviewBtn">Review & Edit</button>
-      <button class="btn-secondary" id="resetBtn" style="color:var(--muted)">Start Over</button>
-    </div>`;
-}
-
-function renderReview() {
-  const items = state.transactions.filter(t => t.bucket || t._skipped);
-  let rows = items.map(t => {
-    let bucketOpts = `<option value="_skip"${!t.bucket?' selected':''}>Skipped</option>` +
-      state.buckets.map(b => `<option value="${esc(b)}"${t.bucket===b?' selected':''}>${esc(b)}</option>`).join("");
-    let catSelect = "";
-    if (t.bucket) {
-      let catOpts = CATEGORIES.map(c => `<option value="${esc(c.name)}"${t.category===c.name?' selected':''}>${esc(c.name)}</option>`).join("");
-      catSelect = `<select data-id="${t.id}" data-field="category">${catOpts}</select>`;
-    }
-    const col = t.amount < 0 ? "var(--red)" : "var(--green)";
-    return `<div class="review-item">
-      <span class="mono" style="font-size:11px;color:var(--muted);min-width:68px">${esc(t.date)}</span>
-      <span style="font-size:13px;flex:1;min-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.description)}</span>
-      <span class="mono" style="font-size:13px;font-weight:600;color:${col};min-width:72px;text-align:right">${formatMoney(t.amount)}</span>
-      <select data-id="${t.id}" data-field="bucket">${bucketOpts}</select>
-      ${catSelect}
-    </div>`;
-  }).join("");
-
-  return `
-    <div class="review-header">
-      <div class="label" style="margin-bottom:0">Review</div>
-      <button class="btn-secondary" id="backToSummary" style="padding:6px 14px;font-size:12px">Back to Summary</button>
-    </div>
-    ${rows}`;
-}
-
-function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
-
-// ---- Event binding ----
-function bindEvents() {
-  // Upload
-  const dz = document.getElementById("dropZone");
-  const fi = document.getElementById("fileInput");
-  if (dz && fi) {
-    dz.onclick = () => fi.click();
-    dz.ondragover = e => { e.preventDefault(); dz.classList.add("active"); };
-    dz.ondragleave = () => dz.classList.remove("active");
-    dz.ondrop = e => { e.preventDefault(); dz.classList.remove("active"); loadFile(e.dataTransfer.files[0]); };
-    fi.onchange = () => loadFile(fi.files[0]);
   }
 
-  // Bucket buttons
-  document.querySelectorAll(".bucket-btn").forEach(btn => {
-    btn.onclick = () => { state.selectedBucket = btn.dataset.bucket; render(); };
+  let newBucketForm = "";
+  if (ui.showNewBucket) {
+    newBucketForm = `<div class="input-row" style="margin-top:12px">
+      <input class="input-field" id="newBucketInput" placeholder="Bucket name" value="${esc(ui.newBucketName)}" autofocus>
+      <button id="addBucketBtn">Create</button>
+    </div>`;
+  } else {
+    newBucketForm = `<div style="margin-top:12px"><button class="btn-add-bucket" id="showNewBucket" style="font-size:14px">+ Create new bucket</button></div>`;
+  }
+
+  const hasB = names.length > 0;
+  return `
+    <div class="header"><div class="tag">Transaction</div><h1>Classifier</h1></div>
+    <div class="page">
+      <div class="label">Your Buckets</div>
+      ${bucketCards}
+      ${newBucketForm}
+      ${hasB ? `<div style="margin-top:20px"><button class="btn-primary" id="uploadCsvBtn">Upload & Sort Transactions</button></div>` : ''}
+      ${hasB ? `<div style="margin-top:12px"><button class="btn-secondary" style="width:100%" id="exportAllBtn">Export all to .xlsx</button></div>` : ''}
+    </div>`;
+}
+
+// ---- BUCKET DETAIL ----
+function renderBucketDetail() {
+  const name = ui.viewBucket;
+  const txns = data.buckets[name]?.transactions || [];
+
+  let content = "";
+  if (txns.length === 0) {
+    content = `<div class="empty-state"><div class="icon">&#x1F4AD;</div><p>No transactions in this bucket yet.<br>Upload a CSV to start sorting.</p></div>`;
+  } else {
+    // Group by category
+    const groups = {};
+    CATEGORIES.forEach(c => { groups[c.name] = []; });
+    txns.forEach(t => {
+      if (groups[t.category]) groups[t.category].push(t);
+      else { if(!groups["Miscellaneous"]) groups["Miscellaneous"]=[]; groups["Miscellaneous"].push(t); }
+    });
+
+    let sections = CATEGORIES.map(cat => {
+      const items = groups[cat.name];
+      if (!items || !items.length) return "";
+      const catTotal = items.reduce((s,t) => s+Math.abs(t.amount), 0);
+      const col = (cat.name==="Income"||cat.name==="Refund") ? "var(--green)" : "var(--red)";
+      let rows = items.map(t => {
+        const tCol = t.amount < 0 ? "var(--red)" : "var(--green)";
+        const desc = t.splitName ? esc(t.splitName) : esc(t.description);
+        return `<div class="txn-list-item">
+          <div class="txn-list-left"><div class="txn-list-desc">${desc}</div><div class="txn-list-meta">${esc(t.date)}${t.splitName?' <span style="color:var(--accent2)">(split)</span>':''}</div></div>
+          <div class="txn-list-amount mono" style="color:${tCol}">${fmt(t.amount)}</div>
+        </div>`;
+      }).join("");
+      return `<div class="cat-section">
+        <div class="cat-section-header"><div class="cat-section-name"><div class="cat-section-dot" style="background:${cat.hex}"></div>${esc(cat.name)}</div><div class="cat-section-total mono" style="color:${col}">${fmt(catTotal)}</div></div>
+        ${rows}
+      </div>`;
+    }).join("");
+
+    const net = bucketNet(name);
+    const total = bucketTotal(name);
+    const netCol = net >= 0 ? "var(--green)" : "var(--red)";
+    content = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div><div class="label" style="margin-bottom:2px">Total activity</div><div class="mono" style="font-size:15px;color:var(--muted)">${fmt(total)}</div></div>
+        <div style="text-align:right"><div class="label" style="margin-bottom:2px">Net</div><div class="mono" style="font-size:20px;font-weight:700;color:${netCol}">${fmt(net)}</div></div>
+      </div>
+      ${sections}`;
+  }
+
+  return `
+    <div class="back-row"><button class="back-btn" id="backHome">All Buckets</button></div>
+    <div class="page">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 style="font-size:20px;font-weight:600">${esc(name)}</h2>
+        <button class="btn-danger" id="deleteBucketBtn">Delete bucket</button>
+      </div>
+      <div class="card">${content}</div>
+      <button class="btn-primary" id="addTxnBtn" style="margin-top:8px">Add Transactions</button>
+    </div>`;
+}
+
+// ---- UPLOAD ----
+function renderUpload() {
+  return `
+    <div class="back-row"><button class="back-btn" id="backHome">All Buckets</button></div>
+    <div class="header"><div class="tag">Step 1</div><h1>Upload CSV</h1></div>
+    <div class="page">
+      <div class="upload-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".csv,.tsv,.txt" style="display:none">
+        <div class="arrow">&#8593;</div>
+        <strong>Drop your bank CSV here</strong>
+        <div class="sub">or tap to browse</div>
+        <div class="hint">Works with most UK bank exports</div>
+      </div>
+    </div>`;
+}
+
+// ---- CLASSIFY ----
+function renderClassify() {
+  const pending = getPending();
+  const total = ui.pending.length;
+  const done = total - pending.length;
+  if (!pending.length) { ui.phase = "results"; return renderResults(); }
+  const t = pending[0];
+  const isNeg = t.amount < 0;
+  const pct = total>0?(done/total*100):0;
+  const names = bucketNames();
+
+  let normalUI = "";
+  if (!ui.splitMode) {
+    let bBtns = names.map(b =>
+      `<button class="bucket-btn${ui.selectedBucket===b?' selected':''}" data-bucket="${esc(b)}">${esc(b)}</button>`
+    ).join("");
+
+    let newBH = ui.showNewBucket
+      ? `<div class="input-row"><input class="input-field" id="newBucketInput" placeholder="New bucket name" value="${esc(ui.newBucketName)}"><button id="addBucketBtn">Add</button></div>`
+      : `<button class="btn-add-bucket" id="showNewBucket">+ New bucket</button>`;
+
+    let catH = "";
+    if (ui.selectedBucket) {
+      const cBtns = CATEGORIES.map(c => `<button class="cat-btn" data-color="${c.color}" data-cat="${esc(c.name)}">${esc(c.name)}</button>`).join("");
+      catH = `<div class="card"><div class="label">Step 2: Category in &ldquo;${esc(ui.selectedBucket)}&rdquo;</div><div class="cat-grid">${cBtns}</div></div>`;
+    }
+
+    normalUI = `
+      <div class="card"><div class="label">Step 1: Choose a bucket</div><div class="bucket-grid mb-12">${bBtns}</div>${newBH}</div>
+      ${catH}
+      <div class="footer-row">
+        <button class="btn-secondary" id="skipBtn">Skip</button>
+        <button class="btn-secondary" id="splitBtn" style="border-color:var(--accent);color:var(--accent2)">Split &#x2702;</button>
+        ${ui.undoStack.length?'<button class="btn-ghost" id="undoBtn">Undo</button>':''}
+      </div>`;
+  }
+
+  let splitUI = "";
+  if (ui.splitMode) {
+    const absTotal = Math.abs(t.amount);
+    const allocated = ui.splitParts.reduce((s,p)=>s+(parseFloat(p.amount)||0),0);
+    const remaining = absTotal - allocated;
+    const remClass = Math.abs(remaining)<0.005?"ok":remaining<0?"over":"partial";
+    const canConfirm = Math.abs(remaining)<0.005 && ui.splitParts.every(p=>p.name.trim()&&p.amount&&p.bucket&&p.category);
+
+    let partsHTML = ui.splitParts.map((p,i) => {
+      let bOpts = `<option value="">Bucket...</option>`+names.map(b=>`<option value="${esc(b)}"${p.bucket===b?' selected':''}>${esc(b)}</option>`).join("");
+      let cOpts = `<option value="">Category...</option>`+CATEGORIES.map(c=>`<option value="${esc(c.name)}"${p.category===c.name?' selected':''}>${esc(c.name)}</option>`).join("");
+      return `<div class="split-part">
+        <div class="split-part-header"><span class="split-part-num">Part ${i+1}</span>${ui.splitParts.length>2?`<button class="split-remove" data-rm="${i}">&times;</button>`:''}</div>
+        <div class="split-row"><input class="input-field split-input" data-si="${i}" data-sf="name" placeholder="Item name" value="${esc(p.name)}"><input class="input-field split-amount-input" data-si="${i}" data-sf="amount" placeholder="\u00A30.00" inputmode="decimal" value="${p.amount}"></div>
+        <div class="split-row"><select class="split-select" data-si="${i}" data-sf="bucket">${bOpts}</select><select class="split-select" data-si="${i}" data-sf="category">${cOpts}</select></div>
+      </div>`;
+    }).join("");
+
+    splitUI = `<div class="card">
+      <div class="label">Split transaction (${fmt(absTotal)} total)</div>
+      ${partsHTML}
+      <div class="split-remaining"><span class="split-remaining-label">Remaining</span><span class="split-remaining-val mono ${remClass}">${fmt(remaining)}</span></div>
+      <div class="split-actions"><button class="btn-secondary" id="addPartBtn" style="font-size:13px;padding:8px 14px">+ Add part</button><button class="btn-primary inline" id="confirmSplitBtn" ${canConfirm?'':'disabled'}>Confirm split</button><button class="btn-ghost" id="cancelSplitBtn">Cancel</button></div>
+    </div>`;
+  }
+
+  return `
+    <div class="back-row"><button class="back-btn" id="cancelClassify">Cancel</button></div>
+    <div class="header"><div class="tag">Step 2</div><h1>Sort Transactions</h1></div>
+    <div class="page">
+      <div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div><div class="progress-text">${done} of ${total}</div></div>
+      <div class="card">
+        <div class="txn-date mono">${esc(t.date)}</div>
+        <div class="txn-desc">${esc(t.description)}</div>
+        <div class="txn-amount mono ${isNeg?'neg':'pos'}">${fmt(t.amount)}</div>
+      </div>
+      ${normalUI}${splitUI}
+    </div>`;
+}
+
+// ---- RESULTS ----
+function renderResults() {
+  const classified = ui.sessionClassified;
+  const skipped = ui.pending.filter(t => t._skipped).length;
+
+  // Bucket totals for this session
+  const bTotals = {};
+  classified.forEach(t => {
+    if (!bTotals[t.bucket]) bTotals[t.bucket] = {out:0,inc:0,count:0};
+    const abs = Math.abs(t.amount);
+    if (t.category==="Income"||t.category==="Refund") bTotals[t.bucket].inc+=abs; else bTotals[t.bucket].out+=abs;
+    bTotals[t.bucket].count++;
   });
 
-  // Category buttons
-  document.querySelectorAll(".cat-btn").forEach(btn => {
-    btn.onclick = () => {
-      if (!state.selectedBucket) return;
-      const pending = getPending();
-      if (!pending.length) return;
-      const t = pending[0];
-      state.undoStack.push(t.id);
-      t.bucket = state.selectedBucket;
-      t.category = btn.dataset.cat;
-      state.selectedBucket = null;
-      if (getPending().length === 0) state.phase = "done";
+  const gOut = Object.values(bTotals).reduce((s,b)=>s+b.out,0);
+  const gIn = Object.values(bTotals).reduce((s,b)=>s+b.inc,0);
+  const net = gIn - gOut;
+
+  let bucketSummaryCards = Object.entries(bTotals).map(([name,d]) => {
+    const bn = d.inc-d.out;
+    const bnCol = bn>=0?"var(--green)":"var(--red)";
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div><span style="font-size:14px;font-weight:600">${esc(name)}</span><span style="font-size:11px;color:var(--muted);margin-left:8px">${d.count} txn${d.count!==1?'s':''}</span></div>
+      <span class="mono" style="font-size:14px;font-weight:700;color:${bnCol}">${fmt(bn)}</span>
+    </div>`;
+  }).join("");
+
+  let txnRows = classified.map(t => {
+    const col = t.amount<0?"var(--red)":"var(--green)";
+    const desc = t.splitName ? esc(t.splitName) : esc(t.description);
+    return `<div class="txn-list-item">
+      <div class="txn-list-left"><div class="txn-list-desc">${desc}</div><div class="txn-list-meta">${esc(t.date)} &middot; ${esc(t.bucket)} &middot; ${esc(t.category)}</div></div>
+      <div class="txn-list-amount mono" style="color:${col}">${fmt(t.amount)}</div>
+    </div>`;
+  }).join("");
+
+  return `
+    <div class="header"><div class="tag">Done</div><h1>Results</h1></div>
+    <div class="page">
+      <div class="center mb-16"><div style="font-size:13px;color:var(--muted)">${classified.length} classified, ${skipped} skipped</div></div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-label">Total Out</div><div class="stat-val mono" style="color:var(--red)">${fmt(gOut)}</div></div>
+        <div class="stat-box"><div class="stat-label">Total In</div><div class="stat-val mono" style="color:var(--green)">${fmt(gIn)}</div></div>
+        <div class="stat-box"><div class="stat-label">Net</div><div class="stat-val mono" style="color:${net>=0?'var(--green)':'var(--red)'}">${fmt(net)}</div></div>
+      </div>
+      <div class="card"><div class="label">Per Bucket</div>${bucketSummaryCards}</div>
+      <div class="card"><div class="label">Transactions</div>${txnRows || '<div style="padding:10px 0;color:var(--muted);font-size:13px">No transactions classified</div>'}</div>
+      <div class="actions">
+        <button class="btn-primary inline" id="backHomeBtn">Back to Buckets</button>
+        <button class="btn-secondary" id="exportSessionBtn">Export .xlsx</button>
+      </div>
+    </div>`;
+}
+
+// ============ EVENTS ============
+function bindEvents() {
+  // Home
+  document.querySelectorAll("[data-open]").forEach(el => {
+    el.onclick = () => { ui.viewBucket = el.dataset.open; ui.phase = "bucket"; render(); };
+  });
+  const showNB = document.getElementById("showNewBucket");
+  if (showNB) showNB.onclick = () => { ui.showNewBucket=true; render(); setTimeout(()=>{const i=document.getElementById("newBucketInput");if(i)i.focus();},50); };
+  const nbI = document.getElementById("newBucketInput");
+  if (nbI) { nbI.oninput=()=>{ui.newBucketName=nbI.value;}; nbI.onkeydown=e=>{if(e.key==="Enter")doCreateBucket();}; }
+  const addBB = document.getElementById("addBucketBtn");
+  if (addBB) addBB.onclick = doCreateBucket;
+  const uploadBtn = document.getElementById("uploadCsvBtn");
+  if (uploadBtn) uploadBtn.onclick = () => { ui.phase="upload"; render(); };
+  const exportAllBtn = document.getElementById("exportAllBtn");
+  if (exportAllBtn) exportAllBtn.onclick = exportAll;
+
+  // Bucket detail
+  const backHome = document.getElementById("backHome");
+  if (backHome) backHome.onclick = goHome;
+  const delBucket = document.getElementById("deleteBucketBtn");
+  if (delBucket) delBucket.onclick = () => {
+    if (confirm("Delete this bucket and all its transactions?")) {
+      deleteBucket(ui.viewBucket);
+      goHome();
+    }
+  };
+  const addTxn = document.getElementById("addTxnBtn");
+  if (addTxn) addTxn.onclick = () => { ui.phase="upload"; render(); };
+
+  // Upload
+  const dz=document.getElementById("dropZone"),fi=document.getElementById("fileInput");
+  if(dz&&fi){dz.onclick=()=>fi.click();dz.ondragover=e=>{e.preventDefault();dz.classList.add("active");};dz.ondragleave=()=>dz.classList.remove("active");dz.ondrop=e=>{e.preventDefault();dz.classList.remove("active");loadFile(e.dataTransfer.files[0]);};fi.onchange=()=>loadFile(fi.files[0]);}
+
+  // Classify: bucket btns
+  document.querySelectorAll(".bucket-btn").forEach(b=>{b.onclick=()=>{ui.selectedBucket=b.dataset.bucket;render();};});
+  document.querySelectorAll(".cat-btn").forEach(b=>{
+    b.onclick=()=>{
+      if(!ui.selectedBucket)return;
+      const p=getPending();if(!p.length)return;
+      const t=p[0];
+      ui.undoStack.push({type:'classify',id:t.id});
+      const txn = {id:genId(),date:t.date,description:t.description,amount:t.amount,category:b.dataset.cat,bucket:ui.selectedBucket,splitName:null};
+      addToBucket(ui.selectedBucket, {date:t.date,description:t.description,amount:t.amount,category:b.dataset.cat,splitName:null});
+      ui.sessionClassified.push(txn);
+      t._done=true;
+      ui.selectedBucket=null;
+      if(!getPending().length) ui.phase="results";
       render();
     };
   });
 
-  // New bucket
-  const showNB = document.getElementById("showNewBucket");
-  if (showNB) showNB.onclick = () => { state.showNewBucket = true; render(); setTimeout(() => { const inp = document.getElementById("newBucketInput"); if(inp) inp.focus(); }, 50); };
-  const cancelNB = document.getElementById("cancelNewBucket");
-  if (cancelNB) cancelNB.onclick = () => { state.showNewBucket = false; state.newBucketName = ""; render(); };
-  const addBB = document.getElementById("addBucketBtn");
-  const nbInput = document.getElementById("newBucketInput");
-  if (nbInput) {
-    nbInput.oninput = () => { state.newBucketName = nbInput.value; };
-    nbInput.onkeydown = e => { if (e.key === "Enter") addNewBucket(); };
-  }
-  if (addBB) addBB.onclick = addNewBucket;
+  // Classify: new bucket in classify
+  const showNB2 = document.getElementById("showNewBucket");
+  if(showNB2 && ui.phase==="classify") showNB2.onclick=()=>{ui.showNewBucket=true;render();setTimeout(()=>{const i=document.getElementById("newBucketInput");if(i)i.focus();},50);};
+  const nbI2 = document.getElementById("newBucketInput");
+  if(nbI2 && ui.phase==="classify"){nbI2.oninput=()=>{ui.newBucketName=nbI2.value;};nbI2.onkeydown=e=>{if(e.key==="Enter")doCreateBucket();};}
+  const addBB2 = document.getElementById("addBucketBtn");
+  if(addBB2 && ui.phase==="classify") addBB2.onclick=doCreateBucket;
 
   // Skip
-  const skipBtn = document.getElementById("skipBtn");
-  if (skipBtn) skipBtn.onclick = () => {
-    const pending = getPending();
-    if (!pending.length) return;
-    state.undoStack.push(pending[0].id);
-    pending[0]._skipped = true;
-    state.selectedBucket = null;
-    if (getPending().length === 0) state.phase = "done";
-    render();
-  };
+  const skipBtn=document.getElementById("skipBtn");
+  if(skipBtn) skipBtn.onclick=()=>{const p=getPending();if(!p.length)return;ui.undoStack.push({type:'skip',id:p[0].id});p[0]._done=true;p[0]._skipped=true;ui.selectedBucket=null;if(!getPending().length)ui.phase="results";render();};
 
   // Undo
-  const undoBtn = document.getElementById("undoBtn");
-  if (undoBtn) undoBtn.onclick = () => {
-    if (!state.undoStack.length) return;
-    const id = state.undoStack.pop();
-    const t = state.transactions.find(x => x.id === id);
-    if (t) { t.bucket = null; t.category = null; t._skipped = false; }
-    state.selectedBucket = null;
-    render();
+  const undoBtn=document.getElementById("undoBtn");
+  if(undoBtn) undoBtn.onclick=()=>{
+    if(!ui.undoStack.length)return;
+    const last=ui.undoStack.pop();
+    if(last.type==='classify'||last.type==='skip'){
+      const t=ui.pending.find(x=>x.id===last.id);
+      if(t){t._done=false;t._skipped=false;}
+      // Remove from sessionClassified and from bucket storage
+      const idx = ui.sessionClassified.findIndex(x=>x._srcId===last.id);
+      if(idx>=0) ui.sessionClassified.splice(idx,1);
+    } else if(last.type==='split'){
+      const t=ui.pending.find(x=>x.id===last.id);
+      if(t){t._done=false;}
+      // Remove split children from session and storage
+      const toRemove = ui.sessionClassified.filter(x=>x._splitFrom===last.id);
+      toRemove.forEach(r => {
+        const bucket = data.buckets[r.bucket];
+        if(bucket){bucket.transactions = bucket.transactions.filter(bt=>bt._srcId!==r._srcId);}
+      });
+      ui.sessionClassified = ui.sessionClassified.filter(x=>x._splitFrom!==last.id);
+      save();
+    }
+    ui.selectedBucket=null;ui.splitMode=false;render();
   };
 
-  // Summary actions
-  const expBtn = document.getElementById("exportBtn");
-  if (expBtn) expBtn.onclick = exportXlsx;
-  const revBtn = document.getElementById("reviewBtn");
-  if (revBtn) revBtn.onclick = () => { state.phase = "review"; render(); };
-  const resBtn = document.getElementById("resetBtn");
-  if (resBtn) resBtn.onclick = () => {
-    state.transactions = []; state.buckets = [...DEFAULT_BUCKETS];
-    state.phase = "upload"; state.undoStack = [];
-    state.selectedBucket = null; state.showNewBucket = false; state.newBucketName = "";
-    render();
+  // Cancel classify
+  const cancelC = document.getElementById("cancelClassify");
+  if(cancelC) cancelC.onclick=()=>{
+    // Remove anything classified this session? Ask user
+    if(ui.sessionClassified.length > 0) {
+      if(!confirm("You have sorted "+ui.sessionClassified.length+" transaction(s). Going back will keep them. Continue?")) return;
+    }
+    goHome();
   };
 
-  // Review
-  const backBtn = document.getElementById("backToSummary");
-  if (backBtn) backBtn.onclick = () => { state.phase = "done"; render(); };
-  document.querySelectorAll(".review-item select").forEach(sel => {
-    sel.onchange = () => {
-      const id = parseInt(sel.dataset.id);
-      const t = state.transactions.find(x => x.id === id);
-      if (!t) return;
-      if (sel.dataset.field === "bucket") {
-        t.bucket = sel.value === "_skip" ? null : sel.value;
-        t._skipped = !t.bucket;
-        if (!t.bucket) t.category = null;
-      } else if (sel.dataset.field === "category") {
-        t.category = sel.value;
-      }
-      render();
-    };
+  // Split
+  const splitBtn=document.getElementById("splitBtn");
+  if(splitBtn) splitBtn.onclick=()=>{ui.splitMode=true;ui.splitParts=[{name:"",amount:"",bucket:"",category:""},{name:"",amount:"",bucket:"",category:""}];render();};
+  const cancelSplit=document.getElementById("cancelSplitBtn");
+  if(cancelSplit) cancelSplit.onclick=()=>{ui.splitMode=false;ui.splitParts=[];render();};
+  const addPart=document.getElementById("addPartBtn");
+  if(addPart) addPart.onclick=()=>{ui.splitParts.push({name:"",amount:"",bucket:"",category:""});render();};
+  document.querySelectorAll("[data-rm]").forEach(b=>{b.onclick=()=>{ui.splitParts.splice(parseInt(b.dataset.rm),1);render();};});
+  document.querySelectorAll("[data-si]").forEach(el=>{
+    const i=parseInt(el.dataset.si),f=el.dataset.sf;
+    if(el.tagName==="SELECT") el.onchange=()=>{ui.splitParts[i][f]=el.value;render();};
+    else{el.oninput=()=>{ui.splitParts[i][f]=el.value;};el.onblur=()=>render();}
   });
+  const confirmSplit=document.getElementById("confirmSplitBtn");
+  if(confirmSplit) confirmSplit.onclick=()=>{
+    const p=getPending();if(!p.length)return;
+    const parent=p[0];
+    const absTotal=Math.abs(parent.amount);
+    const allocated=ui.splitParts.reduce((s,x)=>s+(parseFloat(x.amount)||0),0);
+    if(Math.abs(absTotal-allocated)>0.01)return;
+    if(!ui.splitParts.every(x=>x.name.trim()&&x.amount&&x.bucket&&x.category))return;
+    const sign=parent.amount<0?-1:1;
+    ui.undoStack.push({type:'split',id:parent.id});
+    parent._done=true;
+    ui.splitParts.forEach(sp=>{
+      const srcId = genId();
+      const txn={date:parent.date,description:parent.description+" ["+sp.name+"]",amount:sign*parseFloat(sp.amount),category:sp.category,splitName:sp.name,_srcId:srcId};
+      addToBucket(sp.bucket, txn);
+      ui.sessionClassified.push({...txn,bucket:sp.bucket,_splitFrom:parent.id,_srcId:srcId});
+    });
+    ui.splitMode=false;ui.splitParts=[];
+    if(!getPending().length) ui.phase="results";
+    render();
+  };
+
+  // Results
+  const backHomeBtn=document.getElementById("backHomeBtn");
+  if(backHomeBtn) backHomeBtn.onclick=goHome;
+  const exportSBtn=document.getElementById("exportSessionBtn");
+  if(exportSBtn) exportSBtn.onclick=exportAll;
 }
 
-function addNewBucket() {
-  const name = state.newBucketName.trim();
-  if (!name || state.buckets.includes(name)) return;
-  state.buckets.push(name);
-  state.selectedBucket = name;
-  state.newBucketName = "";
-  state.showNewBucket = false;
+function doCreateBucket() {
+  const n=ui.newBucketName.trim();
+  if(!n)return;
+  createBucket(n);
+  if(ui.phase==="classify") ui.selectedBucket=n;
+  ui.newBucketName="";ui.showNewBucket=false;
   render();
 }
 
-function loadFile(file) {
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    state.transactions = parseCSV(e.target.result);
-    state.phase = "classify";
+function goHome() {
+  ui.phase="home";ui.viewBucket=null;ui.pending=[];ui.sessionClassified=[];
+  ui.selectedBucket=null;ui.showNewBucket=false;ui.newBucketName="";
+  ui.splitMode=false;ui.splitParts=[];ui.undoStack=[];
+  render();
+}
+
+function loadFile(f) {
+  if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    ui.pending=parseCSV(e.target.result);
+    ui.sessionClassified=[];
+    ui.undoStack=[];
+    ui.selectedBucket=null;
+    ui.splitMode=false;
+    ui.phase="classify";
     render();
   };
-  reader.readAsText(file);
+  r.readAsText(f);
 }
 
-// ---- Export ----
-function exportXlsx() {
-  const wb = XLSX.utils.book_new();
+// ============ EXPORT ============
+function exportAll() {
+  const wb=XLSX.utils.book_new();
+  const all=allTransactions();
+  if(!all.length){alert("No transactions to export.");return;}
 
-  // All transactions
-  const all = state.transactions.filter(t => t.bucket || t._skipped).map(t => ({
-    Date: t.date, Description: t.description, Amount: t.amount,
-    Bucket: t.bucket || "Skipped", Category: t.category || ""
-  }));
-  const ws1 = XLSX.utils.json_to_sheet(all);
-  ws1["!cols"] = [{wch:12},{wch:40},{wch:12},{wch:18},{wch:22}];
-  XLSX.utils.book_append_sheet(wb, ws1, "All Transactions");
+  const allData=all.map(t=>({Date:t.date,Description:t.splitName||t.description,"Item Name":t.splitName||"",Amount:t.amount,Bucket:t.bucket,Category:t.category}));
+  const ws1=XLSX.utils.json_to_sheet(allData);
+  ws1["!cols"]=[{wch:12},{wch:40},{wch:20},{wch:12},{wch:18},{wch:22}];
+  XLSX.utils.book_append_sheet(wb,ws1,"All Transactions");
 
-  // Per bucket
-  state.buckets.forEach(bName => {
-    const items = state.transactions.filter(t => t.bucket === bName);
-    if (!items.length) return;
-    const data = items.map(t => ({ Date: t.date, Description: t.description, Amount: Math.abs(t.amount), Category: t.category }));
-    data.push({ Date: "", Description: "TOTAL", Amount: items.reduce((s,t) => s + Math.abs(t.amount), 0), Category: "" });
-    const ws = XLSX.utils.json_to_sheet(data);
-    ws["!cols"] = [{wch:12},{wch:40},{wch:12},{wch:22}];
-    XLSX.utils.book_append_sheet(wb, ws, bName.substring(0,31));
+  bucketNames().forEach(bName=>{
+    const items=data.buckets[bName].transactions;
+    if(!items.length)return;
+    const d=items.map(t=>({Date:t.date,Description:t.splitName||t.description,Amount:Math.abs(t.amount),Category:t.category}));
+    d.push({Date:"",Description:"TOTAL",Amount:items.reduce((s,t)=>s+Math.abs(t.amount),0),Category:""});
+    const ws=XLSX.utils.json_to_sheet(d);
+    ws["!cols"]=[{wch:12},{wch:40},{wch:12},{wch:22}];
+    XLSX.utils.book_append_sheet(wb,ws,bName.substring(0,31));
   });
 
-  // Summary
-  const rows = [];
-  state.buckets.forEach(bName => {
-    const items = state.transactions.filter(t => t.bucket === bName);
-    if (!items.length) return;
-    CATEGORIES.forEach(cat => {
-      const ci = items.filter(t => t.category === cat.name);
-      if (!ci.length) return;
-      rows.push({ Bucket: bName, Category: cat.name, Count: ci.length, Total: ci.reduce((s,t) => s + Math.abs(t.amount), 0) });
+  const sRows=[];
+  bucketNames().forEach(bName=>{
+    const items=data.buckets[bName].transactions;
+    if(!items.length)return;
+    CATEGORIES.forEach(cat=>{
+      const ci=items.filter(t=>t.category===cat.name);
+      if(!ci.length)return;
+      sRows.push({Bucket:bName,Category:cat.name,Count:ci.length,Total:ci.reduce((s,t)=>s+Math.abs(t.amount),0)});
     });
   });
-  const ws2 = XLSX.utils.json_to_sheet(rows);
-  ws2["!cols"] = [{wch:20},{wch:22},{wch:8},{wch:14}];
-  XLSX.utils.book_append_sheet(wb, ws2, "Summary");
-  XLSX.writeFile(wb, "transaction-accounts.xlsx");
+  const ws2=XLSX.utils.json_to_sheet(sRows);
+  ws2["!cols"]=[{wch:20},{wch:22},{wch:8},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,ws2,"Summary");
+  XLSX.writeFile(wb,"transaction-accounts.xlsx");
 }
 
-// ---- Init ----
+// ============ INIT ============
+load();
 render();
 </script>
-
 </body>
 </html>

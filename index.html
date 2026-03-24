@@ -185,11 +185,11 @@ const CATEGORIES = [
 let nextId = 1;
 
 // Persistent data: { buckets: { "Name": { transactions: [...] } } }
-let data = { buckets: {} };
+let data = { buckets: {}, skipped: [] };
 
 // Session state
 let ui = {
-  phase: "home",      // home | bucket | upload | classify | results
+  phase: "home",      // home | bucket | upload | classify | results | skipped
   viewBucket: null,    // which bucket detail is open
   pending: [],         // CSV transactions awaiting classification
   sessionClassified: [],// transactions classified this session (for results)
@@ -285,6 +285,7 @@ function render() {
     case "upload": app.innerHTML = renderUpload(); break;
     case "classify": app.innerHTML = renderClassify(); break;
     case "results": app.innerHTML = renderResults(); break;
+    case "skipped": app.innerHTML = renderSkipped(); break;
   }
   bindEvents();
 }
@@ -327,6 +328,14 @@ function renderHome() {
     newBucketForm = `<div style="margin-top:12px"><button class="btn-add-bucket" id="showNewBucket" style="font-size:14px">+ Create new bucket</button></div>`;
   }
 
+  const skCount = data.skipped.length;
+  const skippedCard = skCount > 0 ? `<div style="margin-top:16px;margin-bottom:4px">
+    <button id="viewSkipped" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,0.04);cursor:pointer;font-family:inherit;text-align:left;display:flex;justify-content:space-between;align-items:center">
+      <div><div style="font-size:14px;font-weight:600;color:var(--orange)">Skipped</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${skCount} transaction${skCount!==1?'s':''} waiting to be sorted</div></div>
+      <div class="bucket-card-arrow" style="color:var(--dim);font-size:18px">&#x203A;</div>
+    </button>
+  </div>` : "";
+
   const hasB = names.length > 0;
   return `
     <div class="header"><div class="tag">Transaction</div><h1>Classifier</h1></div>
@@ -334,6 +343,7 @@ function renderHome() {
       <div class="label">Your Buckets</div>
       ${bucketCards}
       ${newBucketForm}
+      ${skippedCard}
       ${hasB ? `<div style="margin-top:20px"><button class="btn-primary" id="uploadCsvBtn">Upload & Sort Transactions</button></div>` : ''}
       ${hasB ? `<div style="margin-top:12px"><button class="btn-secondary" style="width:100%" id="exportAllBtn">Export all to .xlsx</button></div>` : ''}
     </div>`;
@@ -545,6 +555,38 @@ function renderResults() {
     </div>`;
 }
 
+// ---- SKIPPED ----
+function renderSkipped() {
+  const items = data.skipped;
+  let rows = "";
+  if (!items.length) {
+    rows = `<div class="empty-state"><div class="icon">&#x2713;</div><p>No skipped transactions.<br>Everything has been sorted.</p></div>`;
+  } else {
+    rows = items.map((t,i) => {
+      const col = t.amount<0?"var(--red)":"var(--green)";
+      let bOpts = `<option value="">Bucket...</option>`+bucketNames().map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join("");
+      let cOpts = `<option value="">Category...</option>`+CATEGORIES.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join("");
+      return `<div class="card" style="padding:16px 18px">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+          <div style="flex:1;min-width:0"><div style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.description)}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${esc(t.date)}</div></div>
+          <div class="mono" style="font-size:14px;font-weight:600;color:${col};white-space:nowrap;margin-left:12px">${fmt(t.amount)}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select class="split-select" data-ski="${i}" data-skf="bucket" style="flex:1;min-width:100px">${bOpts}</select>
+          <select class="split-select" data-ski="${i}" data-skf="category" style="flex:1;min-width:100px">${cOpts}</select>
+          <button class="btn-primary inline" data-skassign="${i}" disabled style="padding:8px 14px;font-size:13px;width:auto">Assign</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+  return `
+    <div class="back-row"><button class="back-btn" id="backHome">All Buckets</button></div>
+    <div class="page">
+      <h2 style="font-size:20px;font-weight:600;margin-bottom:16px">Skipped Transactions</h2>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:16px">${items.length} transaction${items.length!==1?'s':''} waiting to be sorted</div>
+      ${rows}
+    </div>`;
+}
 // ============ EVENTS ============
 function bindEvents() {
   // Home
@@ -607,8 +649,8 @@ function bindEvents() {
 
   // Skip
   const skipBtn=document.getElementById("skipBtn");
-  if(skipBtn) skipBtn.onclick=()=>{const p=getPending();if(!p.length)return;ui.undoStack.push({type:'skip',id:p[0].id});p[0]._done=true;p[0]._skipped=true;ui.selectedBucket=null;if(!getPending().length)ui.phase="results";render();};
-
+  if(skipBtn) skipBtn.onclick=()=>{const p=getPending();if(!p.length)return;ui.undoStack.push({type:'skip',id:p[0].id});p[0]._done=true;p[0]._skipped=true;data.skipped.push({id:genId(),date:p[0].date,description:p[0].description,amount:p[0].amount});save();ui.selectedBucket=null;if(!getPending().length)ui.phase="results";render();};
+  
   // Undo
   const undoBtn=document.getElementById("undoBtn");
   if(undoBtn) undoBtn.onclick=()=>{
@@ -634,6 +676,34 @@ function bindEvents() {
     }
     ui.selectedBucket=null;ui.splitMode=false;render();
   };
+
+  // Skipped page
+  document.querySelectorAll("[data-ski]").forEach(el => {
+    const i=parseInt(el.dataset.ski);
+    if(!window._skSelections) window._skSelections={};
+    if(!window._skSelections[i]) window._skSelections[i]={bucket:"",category:""};
+    el.onchange=()=>{
+      window._skSelections[i][el.dataset.skf]=el.value;
+      const sel=window._skSelections[i];
+      const btn=document.querySelector(`[data-skassign="${i}"]`);
+      if(btn) btn.disabled=!(sel.bucket&&sel.category);
+    };
+  });
+  document.querySelectorAll("[data-skassign]").forEach(btn => {
+    btn.onclick=()=>{
+      const i=parseInt(btn.dataset.skassign);
+      const sel=window._skSelections?.[i];
+      if(!sel||!sel.bucket||!sel.category)return;
+      const t=data.skipped[i];
+      addToBucket(sel.bucket,{date:t.date,description:t.description,amount:t.amount,category:sel.category,splitName:null});
+      data.skipped.splice(i,1);
+      save();
+      window._skSelections={};
+      render();
+    };
+  });
+  const skippedLink=document.getElementById("viewSkipped");
+  if(skippedLink) skippedLink.onclick=()=>{ui.phase="skipped";render();};
 
   // Cancel classify
   const cancelC = document.getElementById("cancelClassify");

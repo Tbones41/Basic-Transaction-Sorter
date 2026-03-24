@@ -184,15 +184,15 @@ const CATEGORIES = [
 
 let nextId = 1;
 
-// Persistent data: { buckets: { "Name": { transactions: [...] } } }
+// Persistent data
 let data = { buckets: {}, skipped: [] };
 
 // Session state
 let ui = {
   phase: "home",      // home | bucket | upload | classify | results | skipped
-  viewBucket: null,    // which bucket detail is open
-  pending: [],         // CSV transactions awaiting classification
-  sessionClassified: [],// transactions classified this session (for results)
+  viewBucket: null,
+  pending: [],
+  sessionClassified: [],
   selectedBucket: null,
   showNewBucket: false,
   newBucketName: "",
@@ -208,7 +208,12 @@ function save() {
 function load() {
   try {
     const raw = localStorage.getItem("txnSort_data");
-    if (raw) { data = JSON.parse(raw); nextId = Date.now(); }
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      data = parsed;
+      if (!data.skipped) data.skipped = [];
+      nextId = Date.now();
+    }
   } catch(e) {}
 }
 
@@ -358,7 +363,6 @@ function renderBucketDetail() {
   if (txns.length === 0) {
     content = `<div class="empty-state"><div class="icon">&#x1F4AD;</div><p>No transactions in this bucket yet.<br>Upload a CSV to start sorting.</p></div>`;
   } else {
-    // Group by category
     const groups = {};
     CATEGORIES.forEach(c => { groups[c.name] = []; });
     txns.forEach(t => {
@@ -506,7 +510,6 @@ function renderResults() {
   const classified = ui.sessionClassified;
   const skipped = ui.pending.filter(t => t._skipped).length;
 
-  // Bucket totals for this session
   const bTotals = {};
   classified.forEach(t => {
     if (!bTotals[t.bucket]) bTotals[t.bucket] = {out:0,inc:0,count:0};
@@ -587,6 +590,7 @@ function renderSkipped() {
       ${rows}
     </div>`;
 }
+
 // ============ EVENTS ============
 function bindEvents() {
   // Home
@@ -647,36 +651,6 @@ function bindEvents() {
   const addBB2 = document.getElementById("addBucketBtn");
   if(addBB2 && ui.phase==="classify") addBB2.onclick=doCreateBucket;
 
-  // Skip
-  const skipBtn=document.getElementById("skipBtn");
-  if(skipBtn) skipBtn.onclick=()=>{const p=getPending();if(!p.length)return;ui.undoStack.push({type:'skip',id:p[0].id});p[0]._done=true;p[0]._skipped=true;data.skipped.push({id:genId(),date:p[0].date,description:p[0].description,amount:p[0].amount});save();ui.selectedBucket=null;if(!getPending().length)ui.phase="results";render();};
-  
-  // Undo
-  const undoBtn=document.getElementById("undoBtn");
-  if(undoBtn) undoBtn.onclick=()=>{
-    if(!ui.undoStack.length)return;
-    const last=ui.undoStack.pop();
-    if(last.type==='classify'||last.type==='skip'){
-      const t=ui.pending.find(x=>x.id===last.id);
-      if(t){t._done=false;t._skipped=false;}
-      // Remove from sessionClassified and from bucket storage
-      const idx = ui.sessionClassified.findIndex(x=>x._srcId===last.id);
-      if(idx>=0) ui.sessionClassified.splice(idx,1);
-    } else if(last.type==='split'){
-      const t=ui.pending.find(x=>x.id===last.id);
-      if(t){t._done=false;}
-      // Remove split children from session and storage
-      const toRemove = ui.sessionClassified.filter(x=>x._splitFrom===last.id);
-      toRemove.forEach(r => {
-        const bucket = data.buckets[r.bucket];
-        if(bucket){bucket.transactions = bucket.transactions.filter(bt=>bt._srcId!==r._srcId);}
-      });
-      ui.sessionClassified = ui.sessionClassified.filter(x=>x._splitFrom!==last.id);
-      save();
-    }
-    ui.selectedBucket=null;ui.splitMode=false;render();
-  };
-
   // Skipped page
   document.querySelectorAll("[data-ski]").forEach(el => {
     const i=parseInt(el.dataset.ski);
@@ -705,10 +679,44 @@ function bindEvents() {
   const skippedLink=document.getElementById("viewSkipped");
   if(skippedLink) skippedLink.onclick=()=>{ui.phase="skipped";render();};
 
+  // Skip (during classify)
+  const skipBtn=document.getElementById("skipBtn");
+  if(skipBtn) skipBtn.onclick=()=>{const p=getPending();if(!p.length)return;ui.undoStack.push({type:'skip',id:p[0].id});p[0]._done=true;p[0]._skipped=true;data.skipped.push({id:genId(),date:p[0].date,description:p[0].description,amount:p[0].amount});save();ui.selectedBucket=null;if(!getPending().length)ui.phase="results";render();};
+
+  // Undo
+  const undoBtn=document.getElementById("undoBtn");
+  if(undoBtn) undoBtn.onclick=()=>{
+    if(!ui.undoStack.length)return;
+    const last=ui.undoStack.pop();
+    if(last.type==='classify'||last.type==='skip'){
+      const t=ui.pending.find(x=>x.id===last.id);
+      if(t){
+        // If it was a skip, also remove from data.skipped
+        if(t._skipped){
+          data.skipped.pop();
+          save();
+        }
+        t._done=false;t._skipped=false;
+      }
+      const idx = ui.sessionClassified.findIndex(x=>x._srcId===last.id);
+      if(idx>=0) ui.sessionClassified.splice(idx,1);
+    } else if(last.type==='split'){
+      const t=ui.pending.find(x=>x.id===last.id);
+      if(t){t._done=false;}
+      const toRemove = ui.sessionClassified.filter(x=>x._splitFrom===last.id);
+      toRemove.forEach(r => {
+        const bucket = data.buckets[r.bucket];
+        if(bucket){bucket.transactions = bucket.transactions.filter(bt=>bt._srcId!==r._srcId);}
+      });
+      ui.sessionClassified = ui.sessionClassified.filter(x=>x._splitFrom!==last.id);
+      save();
+    }
+    ui.selectedBucket=null;ui.splitMode=false;render();
+  };
+
   // Cancel classify
   const cancelC = document.getElementById("cancelClassify");
   if(cancelC) cancelC.onclick=()=>{
-    // Remove anything classified this session? Ask user
     if(ui.sessionClassified.length > 0) {
       if(!confirm("You have sorted "+ui.sessionClassified.length+" transaction(s). Going back will keep them. Continue?")) return;
     }
@@ -770,6 +778,7 @@ function goHome() {
   ui.phase="home";ui.viewBucket=null;ui.pending=[];ui.sessionClassified=[];
   ui.selectedBucket=null;ui.showNewBucket=false;ui.newBucketName="";
   ui.splitMode=false;ui.splitParts=[];ui.undoStack=[];
+  window._skSelections={};
   render();
 }
 
@@ -834,7 +843,7 @@ load();
   const fill = document.getElementById("splashFill");
   const skipBtn = document.getElementById("splashSkip");
   const appEl = document.getElementById("app");
-  const duration = 10000; // 10 seconds
+  const duration = 10000;
   const interval = 50;
   let elapsed = 0;
   let dismissed = false;
